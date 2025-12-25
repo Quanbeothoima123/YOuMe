@@ -6,20 +6,35 @@ const {
   validateLogin,
 } = require("../../validators/authValidator");
 const { authenticate } = require("../../middlewares/authMiddleware");
+const {
+  sanitizeInput,
+  preventBruteForce,
+} = require("../../middlewares/securityMiddleware");
 
 /**
  * @route   POST /api/v1/auth/register
  * @desc    Đăng ký tài khoản mới
  * @access  Public
  */
-router.post("/register", validateRegister, AuthController.register);
+router.post(
+  "/register",
+  sanitizeInput, // Chống XSS
+  validateRegister, // Validate dữ liệu
+  AuthController.register
+);
 
 /**
  * @route   POST /api/v1/auth/login
  * @desc    Đăng nhập
  * @access  Public
  */
-router.post("/login", validateLogin, AuthController.login);
+router.post(
+  "/login",
+  sanitizeInput, // Chống XSS
+  preventBruteForce, // Chống brute force
+  validateLogin, // Validate dữ liệu
+  AuthController.login
+);
 
 /**
  * @route   GET /api/v1/auth/profile
