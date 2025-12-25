@@ -1,3 +1,4 @@
+// src/routes/v1/authRoute.js
 const express = require("express");
 const router = express.Router();
 const AuthController = require("../../controllers/authController");
@@ -58,14 +59,14 @@ router.post("/refresh-token", AuthController.refreshToken);
 router.post("/logout", authenticate, AuthController.logout);
 
 /**
- * @route   GET /api/v1/auth/verify-email?token=xxx
+ * @route   POST /api/v1/auth/verify-email?token=xxx
  * @desc    Xác thực email (click từ link trong email)
  * @access  Public
  */
 router.get("/verify-email", AuthController.verifyEmail);
 
 /**
- * @route   POST /api/v1/auth/resend-verification
+ * @route   GET /api/v1/auth/resend-verification
  * @desc    Gửi lại email xác thực
  * @access  Private (cần token)
  */
