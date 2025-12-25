@@ -1,6 +1,9 @@
 const AuthService = require("../services/authService");
 const ApiResponse = require("../utils/apiResponse");
-
+const {
+  resetLoginAttempts,
+  trackFailedLogin,
+} = require("../middlewares/securityMiddleware");
 class AuthController {
   /**
    * POST /api/v1/auth/register
@@ -25,8 +28,16 @@ class AuthController {
       const { email, password } = req.body;
       const result = await AuthService.login(email, password);
 
+      // Reset login attempts khi thành công
+      const ip = req.ip || req.connection.remoteAddress;
+      resetLoginAttempts(ip);
+
       return ApiResponse.success(res, "Đăng nhập thành công", result);
     } catch (error) {
+      // Track failed login attempts
+      const ip = req.ip || req.connection.remoteAddress;
+      trackFailedLogin(ip);
+
       return ApiResponse.error(res, error.message, 401);
     }
   }
