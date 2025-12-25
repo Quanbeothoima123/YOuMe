@@ -1,4 +1,6 @@
+// src/services/emailService.js
 const nodemailer = require("nodemailer");
+const { formatEmailDateTime } = require("../utils/dateUtils");
 
 class EmailService {
   constructor() {
@@ -19,140 +21,179 @@ class EmailService {
    */
   async sendVerificationEmail(userEmail, userName, verificationToken) {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    const sentAt = formatEmailDateTime(new Date());
 
     const mailOptions = {
       from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM}>`,
       to: userEmail,
       subject: "🎉 Xác thực tài khoản của bạn",
-      html: this.getVerificationEmailTemplate(userName, verificationUrl),
+      html: this.getVerificationEmailTemplate(
+        userName,
+        verificationUrl,
+        sentAt
+      ),
     };
 
-    try {
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log("✅ Email sent:", info.messageId);
-      return { success: true, messageId: info.messageId };
-    } catch (error) {
-      console.error("❌ Email error:", error);
-      throw new Error("Không thể gửi email xác thực");
-    }
+    await this.transporter.sendMail(mailOptions);
   }
 
   /**
    * Template HTML cho email xác thực
    */
-  getVerificationEmailTemplate(userName, verificationUrl) {
+  getVerificationEmailTemplate(userName, verificationUrl, sentAt) {
     return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-          }
-          .container {
-            max-width: 600px;
-            margin: 40px auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          }
-          .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 28px;
-          }
-          .content {
-            padding: 40px 30px;
-            color: #333333;
-            line-height: 1.6;
-          }
-          .content p {
-            margin: 15px 0;
-            font-size: 16px;
-          }
-          .button {
-            display: inline-block;
-            padding: 15px 40px;
-            margin: 25px 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 16px;
-          }
-          .button:hover {
-            opacity: 0.9;
-          }
-          .footer {
-            background-color: #f8f8f8;
-            padding: 20px;
-            text-align: center;
-            color: #666666;
-            font-size: 14px;
-          }
-          .alternative-link {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8f8f8;
-            border-radius: 5px;
-            word-break: break-all;
-            font-size: 12px;
-            color: #666;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎉 Chào mừng đến với ${process.env.EMAIL_FROM_NAME}!</h1>
-          </div>
-          
-          <div class="content">
-            <p>Xin chào <strong>${userName}</strong>,</p>
-            
-            <p>Cảm ơn bạn đã đăng ký tài khoản! Chỉ còn một bước nữa thôi.</p>
-            
-            <p>Vui lòng click vào nút bên dưới để xác thực địa chỉ email của bạn:</p>
-            
-            <div style="text-align: center;">
-              <a href="${verificationUrl}" class="button">
-                Xác Thực Email
-              </a>
-            </div>
-            
-            <p><strong>Lưu ý:</strong> Link này chỉ có hiệu lực trong vòng <strong>24 giờ</strong>.</p>
-            
-            <p>Nếu bạn không thể click vào nút, hãy copy link dưới đây và dán vào trình duyệt:</p>
-            
-            <div class="alternative-link">
-              ${verificationUrl}
-            </div>
-            
-            <p>Nếu bạn không tạo tài khoản này, vui lòng bỏ qua email này.</p>
-            
-            <p>Trân trọng,<br><strong>Đội ngũ ${process.env.EMAIL_FROM_NAME}</strong></p>
-          </div>
-          
-          <div class="footer">
-            <p>Email này được gửi tự động, vui lòng không trả lời.</p>
-            <p>&copy; 2024 ${process.env.EMAIL_FROM_NAME}. All rights reserved.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background-color: #f4f7f6;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+      border: 1px solid #eaeaea;
+    }
+
+    .header {
+      text-align: center;
+      padding: 35px 20px 20px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .brand-icon {
+      font-size: 42px;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .sent-time {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #718096;
+    }
+
+    .content {
+      padding: 40px;
+      color: #4a5568;
+      font-size: 16px;
+      line-height: 1.8;
+    }
+
+    .greeting {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 20px;
+    }
+
+    .button-container {
+      text-align: center;
+      margin: 35px 0;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 14px 42px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #ffffff !important;
+      text-decoration: none;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 16px;
+      box-shadow: 0 6px 15px rgba(102,126,234,0.35);
+    }
+
+    .note {
+      margin-top: 30px;
+      padding: 16px;
+      background: #f7fafc;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #718096;
+    }
+
+    .alternative {
+      margin-top: 25px;
+      font-size: 14px;
+    }
+
+    .alternative a {
+      color: #667eea;
+      word-break: break-all;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 28px;
+      background: #f8fafc;
+      font-size: 13px;
+      color: #a0aec0;
+      border-top: 1px solid #f0f0f0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="brand-icon">🎉</span>
+      <h1>Chào mừng đến với ${process.env.EMAIL_FROM_NAME}</h1>
+      <div class="sent-time">📩 Email được gửi lúc ${sentAt}</div>
+    </div>
+
+    <div class="content">
+      <div class="greeting">Xin chào ${userName},</div>
+
+      <p>
+        Cảm ơn bạn đã đăng ký tài khoản. Để hoàn tất quá trình và bảo vệ tài khoản,
+        vui lòng xác minh địa chỉ email của bạn bằng cách nhấn nút bên dưới.
+      </p>
+
+      <div class="button-container">
+        <a href="${verificationUrl}" class="button">
+          Xác Thực Tài Khoản
+        </a>
+      </div>
+
+      <div class="note">
+        ⏰ <strong>Lưu ý:</strong> Liên kết xác thực chỉ có hiệu lực trong vòng <strong>24 giờ</strong>.
+        Vui lòng sử dụng email mới nhất nếu bạn nhận được nhiều email.
+      </div>
+
+      <div class="alternative">
+        Nếu nút không hoạt động, hãy sao chép liên kết sau và dán vào trình duyệt:
+        <br />
+        <a href="${verificationUrl}">${verificationUrl}</a>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Email này được gửi từ ${process.env.EMAIL_FROM_NAME}.</p>
+      <p>Nếu không phải bạn thực hiện, hãy bỏ qua email này.</p>
+      <p>&copy; ${new Date().getFullYear()} ${process.env.EMAIL_FROM_NAME}</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
   }
 
   /**
