@@ -17,7 +17,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Cho phép inline styles
+        styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'"],
         fontSrc: ["'self'"],
@@ -26,7 +26,7 @@ app.use(
         frameSrc: ["'none'"],
       },
     },
-    crossOriginEmbedderPolicy: false, // Tắt nếu cần load resources từ CDN
+    crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
@@ -37,60 +37,48 @@ app.use(
     origin: process.env.CORS_ORIGIN?.split(",") || "*",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: false, // Không dùng cookies
+    credentials: false,
   })
 );
 
-// 3. Rate Limiting - Giới hạn số request
-const limiter = rateLimit({
+// 3. Body Parser (ĐẶT TRƯỚC rate limiting)
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// 4. Rate Limiting - General (cho tất cả API)
+const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 100, // Giới hạn 100 requests mỗi 15 phút
+  max: 100, // 100 requests
   message: {
     status: "error",
     message: "Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau 15 phút",
   },
-  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-// Áp dụng rate limiting cho tất cả routes
-app.use("/api/", limiter);
-
-// Rate limiting nghiêm ngặt hơn cho authentication endpoints
+// 5. Rate Limiting - Auth (nghiêm ngặt hơn)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 5, // Chỉ 5 lần login/register mỗi 15 phút
+  max: 5, // CHỈ 5 requests
   message: {
     status: "error",
     message: "Quá nhiều lần đăng nhập/đăng ký, vui lòng thử lại sau 15 phút",
   },
-  skipSuccessfulRequests: true, // Không đếm request thành công
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
-
-// ============================================
-// BODY PARSERS
-// ============================================
-
-app.use(express.json({ limit: "10mb" })); // Giới hạn size request body
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ============================================
 // CUSTOM SECURITY HEADERS
 // ============================================
 
 app.use((req, res, next) => {
-  // Chống clickjacking
   res.setHeader("X-Frame-Options", "DENY");
-
-  // Chống MIME type sniffing
   res.setHeader("X-Content-Type-Options", "nosniff");
-
-  // XSS Protection (cũ nhưng vẫn tốt cho browser cũ)
   res.setHeader("X-XSS-Protection", "1; mode=block");
-
-  // Referrer Policy
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-
   next();
 });
 
@@ -98,7 +86,7 @@ app.use((req, res, next) => {
 // ROUTES
 // ============================================
 
-// Health check
+// Health check (không có rate limit)
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "success",
@@ -108,14 +96,16 @@ app.get("/health", (req, res) => {
   });
 });
 
-// API routes
-const routes = require("./routes");
-app.use("/api", routes);
-
-// Áp dụng auth rate limiter cho auth routes
-const authRoutes = require("./routes/v1/authRoute");
+// Áp dụng rate limiter CHO LOGIN & REGISTER TRƯỚC
 app.use("/api/v1/auth/login", authLimiter);
 app.use("/api/v1/auth/register", authLimiter);
+
+// Áp dụng general limiter cho TẤT CẢ API còn lại
+app.use("/api/", generalLimiter);
+
+// Mount tất cả routes
+const routes = require("./routes");
+app.use("/api", routes);
 
 // ============================================
 // ERROR HANDLERS
@@ -134,13 +124,11 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error("Error:", err);
 
-  // Không leak stack trace trong production
   const errorResponse = {
     status: "error",
     message: err.message || "Internal Server Error",
   };
 
-  // Chỉ show stack trace trong development
   if (process.env.NODE_ENV === "development") {
     errorResponse.stack = err.stack;
   }
